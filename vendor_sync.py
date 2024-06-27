@@ -1,41 +1,30 @@
 import pandas as pd
 
 
-# Function to read objectives from a txt file
-def read_objectives(txt_file):
-    with open(txt_file, 'r') as file:
-        objectives = [line.strip() for line in file.readlines()]
-    return objectives
-
-
-# Function to find and update top 3 vendors in the CSV file based on objectives
-def update_csv_with_vendors(txt_file, csv_file, output_csv_file):
-    # Read the objectives from the txt file
-    objectives = read_objectives(txt_file)
-
-    # Read the CSV file into a DataFrame
+def update_points_with_vendors(txt_file, csv_file):
     df = pd.read_csv(csv_file)
+    updated_points = []
 
-    # Iterate over the objectives and update the CSV file with the top 3 vendors
-    for objective in objectives:
-        matching_rows = df[df['Objective'] == objective]
-        if not matching_rows.empty:
-            # Get the top 3 vendors
-            top_vendors = matching_rows.nlargest(3, 'Score')['Vendor'].tolist()
-            top_vendors_str = ', '.join(top_vendors)
+    with open(txt_file, 'r') as f:
+        lines = f.readlines()
 
-            # Update the CSV file
-            df.loc[df['Objective'] == objective, 'Top 3 Vendors'] = top_vendors_str
+    for line in lines:
+        parts = line.strip().split(',')
+        objective = parts[0]
+        x, y = parts[1], parts[2]
 
-    # Save the updated DataFrame to a new CSV file
-    df.to_csv(output_csv_file, index=False)
-    print(f"Updated CSV file saved as: {output_csv_file}")
+        if objective in df['Objective'].values:
+            vendor_info = df[df['Objective'] == objective].iloc[0].to_dict()
+            vendor_str = f"Vendor A: {vendor_info['Vendor_A']}\nVendor B: {vendor_info['Vendor_B']}\nVendor C: {vendor_info['Vendor_C']}"
+            updated_points.append(f"{objective},{x},{y},{vendor_str}")
+
+    with open(txt_file, 'w') as f:
+        for point in updated_points:
+            f.write(point + "\n")
 
 
-# File paths
-txt_file = 'points_update_test.txt'
-csv_file = 'data.csv'
-output_csv_file = 'updated_data.csv'
-
-# Update the CSV file with top 3 vendors
-update_csv_with_vendors(txt_file, csv_file, output_csv_file)
+if __name__ == "__main__":
+    txt_file = 'points.txt'
+    csv_file = 'data.csv'
+    update_points_with_vendors(txt_file, csv_file)
+    print(f"Updated points file saved as: {txt_file}")
