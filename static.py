@@ -6,12 +6,9 @@ import matplotlib.image as mpimg
 import os
 import csv
 
-# Global variable for storing the press event
-press_event = None
+# Global variables
+points = []
 
-# Store original x and y limits
-original_xlim = None
-original_ylim = None
 
 # Function to handle the click event for left mouse button
 def on_click(event):
@@ -28,13 +25,8 @@ def on_click(event):
                 update_scatter()  # Update scatter plot
                 ax.figure.canvas.draw()  # Redraw the figure
 
-# Function to update the scatter plot
-def update_scatter():
-    colors = ['grey'] * len(points)
-    scatter.set_offsets([[p['x'], p['y']] for p in points])
-    scatter.set_color(colors)
 
-# Function to handle the motion event (hover)
+# Function to handle mouse motion (hover)
 def on_motion(event):
     x, y = event.xdata, event.ydata
     if x is not None and y is not None:
@@ -42,89 +34,115 @@ def on_motion(event):
         ylim = ax.get_ylim()
         detection_radius = 0.01 * (xlim[1] - xlim[0])  # 1% of the current x-axis range
         colors = ['grey'] * len(points)
+        highest_scores = []
+
         for i, point in enumerate(points):
-            if ((x - point['x'])**2 + (y - point['y'])**2) ** 0.5 < detection_radius:
+            if ((x - point['x']) ** 2 + (y - point['y']) ** 2) ** 0.5 < detection_radius:
                 colors[i] = 'blue'
-                vendor_info_label.config(text=f"Vendor Info:\n{point['vendor_info']}")
+                highest_scores = find_highest_scores(point['x'], point['y'])
                 break
+
+        if highest_scores:
+            vendor_info_label.config(text=f"Highest Vendor Scores:\n{', '.join(highest_scores)}")
         else:
-            vendor_info_label.config(text="Vendor Info:")
+            vendor_info_label.config(text="Hover over a point to see highest vendor scores.")
+
         scatter.set_color(colors)
         ax.figure.canvas.draw()
 
-# Function to handle the scroll event (zoom)
+
+# Function to update the scatter plot
+def update_scatter():
+    colors = ['grey'] * len(points)
+    scatter.set_offsets([[p['x'], p['y']] for p in points])
+    scatter.set_color(colors)
+
+
+# Function to find highest vendor scores associated with given x, y coordinates
+def find_highest_scores(x, y):
+    highest_scores = []
+    objectives = {}
+
+    with open("points.txt", "r") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            try:
+                if len(row) >= 3:
+                    x_val, y_val, vendor_info = row[0], row[1], row[2]
+                    if float(x_val) == x and float(y_val) == y:
+                        # Extract vendor scores starting from the 3rd index (index 2)
+                        objective_number = row[3]  # Assuming objective number is in index 3
+                        for item in row[4:]:
+                            parts = item.split(': ')
+                            if len(parts) == 2:
+                                vendor, score = parts
+                                if vendor not in objectives:
+                                    objectives[vendor] = []
+                                objectives[vendor].append((objective_number, float(score)))
+
+            except (ValueError, IndexError):
+                print(f"Skipping invalid line in points.txt: {','.join(row)}")
+
+    # Find the top 5 scores for each vendor
+    for vendor, scores in objectives.items():
+        top_scores = sorted(scores, key=lambda x: x[1], reverse=True)[:5]  # Take only top 5 scores
+        for objective_number, score in top_scores:
+            highest_scores.append(f"{objective_number}: {vendor}: {score}")
+
+    return highest_scores[:5]  # Return only top 5 highest scores
+
+
+# Function to handle scroll event for zooming
 def on_scroll(event):
-    scale_factor = 1.1 if event.button == 'up' else 0.9
-    curr_xlim = ax.get_xlim()
-    curr_ylim = ax.get_ylim()
-    xdata = event.xdata  # get event x location
-    ydata = event.ydata  # get event y location
+    x, y = event.xdata, event.ydata
+    if event.button == 'up':
+        scale_factor = 1.1  # Zoom in
+    elif event.button == 'down':
+        scale_factor = 0.9  # Zoom out
+    else:
+        return  # Exit if not scroll up or down
 
-    if xdata is None or ydata is None:
-        return
+    if x is not None and y is not None:
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
 
-    new_width = (curr_xlim[1] - curr_xlim[0]) * scale_factor
-    new_height = (curr_ylim[1] - curr_ylim[0]) * scale_factor
+        new_xlim = (x - (x - xlim[0]) * scale_factor, x + (xlim[1] - x) * scale_factor)
+        new_ylim = (y - (y - ylim[0]) * scale_factor, y + (ylim[1] - y) * scale_factor)
 
-    relx = (curr_xlim[1] - xdata) / (curr_xlim[1] - curr_xlim[0])
-    rely = (curr_ylim[1] - ydata) / (curr_ylim[1] - curr_ylim[0])
+        ax.set_xlim(new_xlim)
+        ax.set_ylim(new_ylim)
+        ax.figure.canvas.draw()
 
-    ax.set_xlim([xdata - new_width * (1 - relx), xdata + new_width * (relx)])
-    ax.set_ylim([ydata - new_height * (1 - rely), ydata + new_height * (rely)])
-    ax.figure.canvas.draw()
-
-# Function to handle the drag event (pan)
-def on_press(event):
-    global press_event
-    if event.button == 3:  # Right mouse button
-        press_event = event
-
-def on_release(event):
-    global press_event
-    press_event = None
-
-def on_motion_pan(event):
-    global press_event
-    if press_event is None or event.button != 3:
-        return
-
-    if event.xdata is None or event.ydata is None or press_event.xdata is None or press_event.ydata is None:
-        return
-
-    dx = event.xdata - press_event.xdata
-    dy = event.ydata - press_event.ydata
-    curr_xlim = ax.get_xlim()
-    curr_ylim = ax.get_ylim()
-
-    ax.set_xlim(curr_xlim[0] - dx, curr_xlim[1] - dx)
-    ax.set_ylim(curr_ylim[0] - dy, curr_ylim[1] - dy)
-    ax.figure.canvas.draw()
-
-    press_event.xdata = event.xdata
-    press_event.ydata = event.ydata
 
 # Function to load points from the TXT file
 def load_points():
+    global points
+    points = []
     if os.path.exists("points.txt"):
         with open("points.txt", "r") as f:
             reader = csv.reader(f)
             for row in reader:
                 try:
-                    x, y, vendor_info = float(row[0]), float(row[1]), row[2]
-                    points.append({'x': x, 'y': y, 'vendor_info': vendor_info})
+                    if len(row) >= 3:
+                        x, y, vendor_info = float(row[0]), float(row[1]), row[2]
+                        points.append({'x': x, 'y': y, 'vendor_info': vendor_info})
                 except ValueError:
                     print(f"Skipping invalid line in points.txt: {','.join(row)}")
+
     if points:
         update_scatter()  # Initialize scatter plot with points
     else:
         scatter.set_offsets([[]])  # Handle empty points with empty 2D array
+
     ax.figure.canvas.draw()
+
 
 # Function to reset the view to the original limits
 def reset_view():
     ax.set_xlim(original_xlim)
     ax.set_ylim(original_ylim)
     ax.figure.canvas.draw()
+
 
 # Create the main window
 root = tk.Tk()
@@ -133,9 +151,7 @@ root.title("Interactive Chart")
 # Create a style for better appearance
 style = ttk.Style()
 style.theme_use('clam')
-style.configure("TLabel", padding=6, font="Helvetica 12")
-style.configure("TButton", padding=6, font="Helvetica 12", background="#4CAF50", foreground="white")
-style.configure("TFrame", background="#f5f5f5")
+style.configure("TLabel", padding=10, font=("Helvetica", 12))
 
 # Load the image
 image_path = 'img/DoDFanChart.png'
@@ -153,16 +169,12 @@ original_xlim = ax.get_xlim()
 original_ylim = ax.get_ylim()
 
 # Initialize scatter plot for points
-points = []
 scatter = ax.scatter([], [], color='grey', s=50)
 
-# Connect the click, motion, scroll, and pan events
+# Connect the click, motion, and scroll events
 fig.canvas.mpl_connect('button_press_event', on_click)
 fig.canvas.mpl_connect('motion_notify_event', on_motion)
 fig.canvas.mpl_connect('scroll_event', on_scroll)
-fig.canvas.mpl_connect('button_press_event', on_press)
-fig.canvas.mpl_connect('button_release_event', on_release)
-fig.canvas.mpl_connect('motion_notify_event', on_motion_pan)
 
 # Convert the Matplotlib figure to a Tkinter Canvas
 canvas = FigureCanvasTkAgg(fig, master=root)
@@ -175,8 +187,10 @@ side_frame.pack_propagate(False)  # Prevent the frame from resizing
 side_frame.pack(side=tk.RIGHT, fill=tk.Y, expand=False)
 
 # Create a label for displaying vendor information with a fixed size
-vendor_info_label = ttk.Label(side_frame, text="Vendor Info:", anchor="nw", justify="left", wraplength=280)
-vendor_info_label.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+vendor_info_label = ttk.Label(side_frame, text="Hover over a point to see highest vendor scores.", anchor="nw",
+                              justify="left", wraplength=280,
+                              style="Info.TLabel")
+vendor_info_label.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=10)
 
 # Create a reset button
 reset_button = ttk.Button(side_frame, text="Reset View", command=reset_view)
