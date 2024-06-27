@@ -25,8 +25,7 @@ def on_click(event):
                 update_scatter()  # Update scatter plot
                 ax.figure.canvas.draw()  # Redraw the figure
 
-
-# Function to handle mouse motion (hover)
+# Function that displays the vendor info based on hover within detection radius.
 def on_motion(event):
     x, y = event.xdata, event.ydata
     if x is not None and y is not None:
@@ -36,20 +35,27 @@ def on_motion(event):
         colors = ['grey'] * len(points)
         highest_scores = []
 
+        debug_message = f"Mouse hovering at ({x:.2f}, {y:.2f}):"
+
         for i, point in enumerate(points):
             if ((x - point['x']) ** 2 + (y - point['y']) ** 2) ** 0.5 < detection_radius:
                 colors[i] = 'blue'
                 highest_scores = find_highest_scores(point['x'], point['y'])
+                debug_message += f"\n - Point ({point['x']:.2f}, {point['y']:.2f}): {point['vendor_info']}"
                 break
 
         if highest_scores:
             vendor_info_label.config(text=f"Highest Vendor Scores:\n{', '.join(highest_scores)}")
+            debug_message += f"\n - Highest Scores: {', '.join(highest_scores)}"
         else:
-            vendor_info_label.config(text="Hover over a point to see highest vendor scores.")
+            vendor_info_label.config(text="No vendor scores found.")
+            debug_message += "\n - No vendor scores found."
 
         scatter.set_color(colors)
         ax.figure.canvas.draw()
 
+        # Print debug message to console
+        # print(debug_message)
 
 # Function to update the scatter plot
 def update_scatter():
@@ -57,40 +63,35 @@ def update_scatter():
     scatter.set_offsets([[p['x'], p['y']] for p in points])
     scatter.set_color(colors)
 
-
-# Function to find highest vendor scores associated with given x, y coordinates
 def find_highest_scores(x, y):
-    highest_scores = []
-    objectives = {}
+    scores = []
 
     with open("points.txt", "r") as f:
         reader = csv.reader(f)
         for row in reader:
             try:
                 if len(row) >= 3:
-                    x_val, y_val, vendor_info = row[0], row[1], row[2]
-                    if float(x_val) == x and float(y_val) == y:
+                    x_val, y_val, vendor_info = float(row[0]), float(row[1]), row[2]
+                    if x_val == x and y_val == y:
                         # Extract vendor scores starting from the 3rd index (index 2)
-                        objective_number = row[3]  # Assuming objective number is in index 3
-                        for item in row[4:]:
+                        for item in row[3:]:
                             parts = item.split(': ')
                             if len(parts) == 2:
-                                vendor, score = parts
-                                if vendor not in objectives:
-                                    objectives[vendor] = []
-                                objectives[vendor].append((objective_number, float(score)))
+                                vendor, score = parts[0], float(parts[1])  # Extract vendor and score
+                                scores.append((vendor, score))
 
             except (ValueError, IndexError):
                 print(f"Skipping invalid line in points.txt: {','.join(row)}")
 
-    # Find the top 5 scores for each vendor
-    for vendor, scores in objectives.items():
-        top_scores = sorted(scores, key=lambda x: x[1], reverse=True)[:5]  # Take only top 5 scores
-        for objective_number, score in top_scores:
-            highest_scores.append(f"{objective_number}: {vendor}: {score}")
+    # Sort scores by score value in descending order
+    scores.sort(key=lambda item: item[1], reverse=True)
 
-    return highest_scores[:5]  # Return only top 5 highest scores
+    # Retrieve top 5 scores
+    highest_scores = []
+    for vendor, score in scores[:5]:
+        highest_scores.append(f"{vendor}: {score}")
 
+    return highest_scores
 
 # Function to handle scroll event for zooming
 def on_scroll(event):
