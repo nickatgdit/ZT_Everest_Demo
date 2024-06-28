@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import simpledialog, ttk
+from tkinter.scrolledtext import ScrolledText
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
@@ -8,7 +9,6 @@ import csv
 
 # Global variables
 points = []
-
 
 # Function to handle the click event for left mouse button
 def on_click(event):
@@ -45,10 +45,16 @@ def on_motion(event):
                 break
 
         if highest_scores:
-            vendor_info_label.config(text=f"Highest Vendor Scores:\n{', '.join(highest_scores)}")
+            vendor_info_text.config(state=tk.NORMAL)
+            vendor_info_text.delete(1.0, tk.END)
+            vendor_info_text.insert(tk.END, "Highest Vendor Scores:\n" + "\n".join(highest_scores))
+            vendor_info_text.config(state=tk.DISABLED)
             debug_message += f"\n - Highest Scores: {', '.join(highest_scores)}"
         else:
-            vendor_info_label.config(text="No vendor scores found.")
+            vendor_info_text.config(state=tk.NORMAL)
+            vendor_info_text.delete(1.0, tk.END)
+            vendor_info_text.insert(tk.END, "No vendor scores found.")
+            vendor_info_text.config(state=tk.DISABLED)
             debug_message += "\n - No vendor scores found."
 
         scatter.set_color(colors)
@@ -77,7 +83,7 @@ def find_highest_scores(x, y):
                         for item in row[3:]:
                             parts = item.split(': ')
                             if len(parts) == 2:
-                                vendor, score = parts[0], float(parts[1])  # Extract vendor and score
+                                vendor, score = parts[0].strip(), float(parts[1].strip())  # Extract vendor and score, strip spaces
                                 scores.append((vendor, score))
 
             except (ValueError, IndexError):
@@ -114,7 +120,6 @@ def on_scroll(event):
         ax.set_ylim(new_ylim)
         ax.figure.canvas.draw()
 
-
 # Function to load points from the TXT file
 def load_points():
     global points
@@ -137,13 +142,36 @@ def load_points():
 
     ax.figure.canvas.draw()
 
-
 # Function to reset the view to the original limits
 def reset_view():
     ax.set_xlim(original_xlim)
     ax.set_ylim(original_ylim)
     ax.figure.canvas.draw()
 
+# Function to find the coordinates of an objective
+def find_coordinates(objective):
+    for point in points:
+        if point['vendor_info'] == objective:
+            return point['x'], point['y']
+    return None, None
+
+# Function to move mouse pointer to the given coordinates
+def move_pointer_to_coordinates(x, y):
+    if x is not None and y is not None:
+        ax.plot([x], [y], marker='o', markersize=10, color='red')
+        ax.figure.canvas.draw()
+        # Display message in console or elsewhere since toolbar message is not available
+        print(f"Moved to objective at ({x}, {y})")
+
+# Function to handle the search
+def on_search():
+    objective = search_entry.get()
+    x, y = find_coordinates(objective)
+    move_pointer_to_coordinates(x, y)
+    if x is not None and y is not None:
+        print(f"Found objective {objective} at ({x}, {y})")
+    else:
+        print(f"Objective {objective} not found.")
 
 # Create the main window
 root = tk.Tk()
@@ -153,6 +181,8 @@ root.title("Interactive Chart")
 style = ttk.Style()
 style.theme_use('clam')
 style.configure("TLabel", padding=10, font=("Helvetica", 12))
+style.configure("Info.TLabel", padding=10, font=("Helvetica", 10, "italic"), foreground="blue")
+style.configure("TButton", padding=10, font=("Helvetica", 12))
 
 # Load the image
 image_path = 'img/DoDFanChart.png'
@@ -188,14 +218,24 @@ side_frame.pack_propagate(False)  # Prevent the frame from resizing
 side_frame.pack(side=tk.RIGHT, fill=tk.Y, expand=False)
 
 # Create a label for displaying vendor information with a fixed size
-vendor_info_label = ttk.Label(side_frame, text="Hover over a point to see highest vendor scores.", anchor="nw",
-                              justify="left", wraplength=280,
-                              style="Info.TLabel")
-vendor_info_label.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=10)
+vendor_info_text = ScrolledText(side_frame, wrap=tk.WORD, height=20, font=("Helvetica", 10))
+vendor_info_text.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=10)
+vendor_info_text.insert(tk.END, "Hover over a point to see highest vendor scores.")
+vendor_info_text.config(state=tk.DISABLED)
 
 # Create a reset button
 reset_button = ttk.Button(side_frame, text="Reset View", command=reset_view)
 reset_button.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
+
+# Add a search box and button to the side frame
+search_label = ttk.Label(side_frame, text="Search Objective:", style="TLabel")
+search_label.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
+
+search_entry = ttk.Entry(side_frame, width=25)
+search_entry.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
+
+search_button = ttk.Button(side_frame, text="Search", command=on_search)
+search_button.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
 
 # Load existing points
 load_points()
