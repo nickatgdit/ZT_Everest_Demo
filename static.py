@@ -9,6 +9,7 @@ import csv
 
 # Global variables
 points = []
+debug_mode = False  # Initially debug mode is off
 
 # Function to handle the click event for left mouse button
 def on_click(event):
@@ -50,6 +51,9 @@ def on_motion(event):
             vendor_info_text.insert(tk.END, "Highest Vendor Scores:\n" + "\n".join(highest_scores))
             vendor_info_text.config(state=tk.DISABLED)
             debug_message += f"\n - Highest Scores: {', '.join(highest_scores)}"
+
+            # Update vendor comparison plot
+            update_vendor_comparison_plot(highest_scores)
         else:
             vendor_info_text.config(state=tk.NORMAL)
             vendor_info_text.delete(1.0, tk.END)
@@ -57,11 +61,15 @@ def on_motion(event):
             vendor_info_text.config(state=tk.DISABLED)
             debug_message += "\n - No vendor scores found."
 
+            # Clear vendor comparison plot if no scores found
+            clear_vendor_comparison_plot()
+
         scatter.set_color(colors)
         ax.figure.canvas.draw()
 
-        # Print debug message to console
-        # print(debug_message)
+        # Print debug message to console if debug mode is enabled
+        if debug_mode:
+            print(debug_message)
 
 # Function to update the scatter plot
 def update_scatter():
@@ -69,6 +77,46 @@ def update_scatter():
     scatter.set_offsets([[p['x'], p['y']] for p in points])
     scatter.set_color(colors)
 
+# Function to update the vendor comparison plot
+def update_vendor_comparison_plot(highest_scores):
+    # Clear previous plot
+    vendor_comparison_plot.clear()
+
+    # Extract vendors and scores
+    vendors = []
+    scores = []
+    for score in highest_scores:
+        parts = score.split(': ')
+        vendors.append(parts[0])
+        scores.append(float(parts[1]))
+
+    # Plot data in vendor comparison plot
+    vendor_comparison_plot.bar(vendors, scores, color='skyblue')
+    vendor_comparison_plot.set_xlabel('Vendors')
+    vendor_comparison_plot.set_ylabel('Scores')
+    vendor_comparison_plot.set_title('Top 5 Vendors Comparison')
+    vendor_comparison_plot.set_xticklabels(vendors, rotation=45, ha='right')
+    vendor_comparison_plot.grid(True)
+
+    # Update canvas
+    vendor_comparison_canvas.draw()
+
+    # Print debug message to console if debug mode is enabled
+    if debug_mode:
+        debug_message = f"Updated vendor comparison plot with scores: {highest_scores}"
+        print(debug_message)
+
+# Function to clear the vendor comparison plot
+def clear_vendor_comparison_plot():
+    # Clear plot and redraw canvas
+    vendor_comparison_plot.clear()
+    vendor_comparison_canvas.draw()
+
+    # Print debug message to console if debug mode is enabled
+    if debug_mode:
+        print("Cleared vendor comparison plot.")
+
+# Function to find the highest scores for a given point
 def find_highest_scores(x, y):
     scores = []
 
@@ -120,6 +168,11 @@ def on_scroll(event):
         ax.set_ylim(new_ylim)
         ax.figure.canvas.draw()
 
+        # Print debug message to console if debug mode is enabled
+        if debug_mode:
+            debug_message = f"Zoomed in at ({x:.2f}, {y:.2f}) with scale factor {scale_factor:.2f}"
+            print(debug_message)
+
 # Function to load points from the TXT file
 def load_points():
     global points
@@ -142,11 +195,19 @@ def load_points():
 
     ax.figure.canvas.draw()
 
+    # Print debug message to console if debug mode is enabled
+    if debug_mode:
+        print("Loaded points from points.txt file.")
+
 # Function to reset the view to the original limits
 def reset_view():
     ax.set_xlim(original_xlim)
     ax.set_ylim(original_ylim)
     ax.figure.canvas.draw()
+
+    # Print debug message to console if debug mode is enabled
+    if debug_mode:
+        print("Reset view to original limits.")
 
 # Function to find the coordinates of an objective
 def find_coordinates(objective):
@@ -163,33 +224,51 @@ def move_pointer_to_coordinates(x, y):
         # Display message in console or elsewhere since toolbar message is not available
         print(f"Moved to objective at ({x}, {y})")
 
-# Function to handle the search
+        # Print debug message to console if debug mode is enabled
+        if debug_mode:
+            debug_message = f"Moved to objective at ({x}, {y})"
+            print(debug_message)
+    else:
+        print("Invalid objective.")
+
+# Function to search for an objective
 def on_search():
     objective = search_entry.get()
     x, y = find_coordinates(objective)
     move_pointer_to_coordinates(x, y)
-    if x is not None and y is not None:
-        print(f"Found objective {objective} at ({x}, {y})")
+
+# Function to toggle debug mode
+def toggle_debug_mode():
+    global debug_mode
+    debug_mode = not debug_mode
+    if debug_mode:
+        print("Debug mode enabled.")
     else:
-        print(f"Objective {objective} not found.")
+        print("Debug mode disabled.")
 
-# Create the main window
+# Initialize Tkinter
 root = tk.Tk()
-root.title("Interactive Chart")
+root.title("Interactive Vendor Map")
 
-# Create a style for better appearance
-style = ttk.Style()
-style.theme_use('clam')
-style.configure("TLabel", padding=10, font=("Helvetica", 12))
-style.configure("Info.TLabel", padding=10, font=("Helvetica", 10, "italic"), foreground="blue")
-style.configure("TButton", padding=10, font=("Helvetica", 12))
+# Create a main frame
+main_frame = ttk.Frame(root)
+main_frame.pack(fill=tk.BOTH, expand=True)
 
-# Load the image
-image_path = 'img/DoDFanChart.png'
-img = mpimg.imread(image_path)
-img_width, img_height = img.shape[1], img.shape[0]
+# Create a main paned window
+main_pane = ttk.PanedWindow(main_frame, orient=tk.VERTICAL)
+main_pane.pack(fill=tk.BOTH, expand=True)
 
-# Create a figure and axis
+# Create a frame for chart
+chart_frame = ttk.Frame(main_pane)
+chart_frame.grid_rowconfigure(0, weight=1)
+chart_frame.grid_columnconfigure(0, weight=1)
+main_pane.add(chart_frame, weight=2)  # Larger pane for the chart
+
+# Load an image for the chart
+img = mpimg.imread('img/DoDFanChart.png')
+img_height, img_width, _ = img.shape
+
+# Create a figure and axis with locked aspect ratio
 fig, ax = plt.subplots()
 ax.imshow(img, extent=[0, img_width, 0, img_height])
 ax.set_aspect('auto')  # Maintain the aspect ratio of the image
@@ -208,37 +287,67 @@ fig.canvas.mpl_connect('motion_notify_event', on_motion)
 fig.canvas.mpl_connect('scroll_event', on_scroll)
 
 # Convert the Matplotlib figure to a Tkinter Canvas
-canvas = FigureCanvasTkAgg(fig, master=root)
+canvas = FigureCanvasTkAgg(fig, master=chart_frame)
 canvas.draw()
-canvas.get_tk_widget().pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-# Create a frame for the side menu with a fixed size
-side_frame = ttk.Frame(root, padding="10", width=300, height=600)
-side_frame.pack_propagate(False)  # Prevent the frame from resizing
-side_frame.pack(side=tk.RIGHT, fill=tk.Y, expand=False)
+# Create a frame for dialog and vendor comparison plot
+dialog_and_vendor_frame = ttk.Frame(main_pane)
+dialog_and_vendor_frame.grid_rowconfigure(0, weight=1)
+dialog_and_vendor_frame.grid_columnconfigure(0, weight=1)
+dialog_and_vendor_frame.grid_columnconfigure(1, weight=1)
+main_pane.add(dialog_and_vendor_frame, weight=1)  # Smaller pane for dialog and vendor comparison plot
 
-# Create a label for displaying vendor information with a fixed size
-vendor_info_text = ScrolledText(side_frame, wrap=tk.WORD, height=20, font=("Helvetica", 10))
-vendor_info_text.pack(side=tk.TOP, fill=tk.BOTH, expand=True, padx=10, pady=10)
+# Create a frame for the dialog
+dialog_frame = ttk.Frame(dialog_and_vendor_frame, padding="10")
+dialog_frame.grid(row=0, column=0, sticky="nsew")
+
+# Create a label for vendor information
+vendor_info_label = ttk.Label(dialog_frame, text="Vendor Information", style="TLabel")
+vendor_info_label.pack(fill=tk.X, pady=10)
+
+# Create a scrolled text widget for displaying vendor information
+vendor_info_text = ScrolledText(dialog_frame, wrap=tk.WORD, height=10, font=("Helvetica", 10))
+vendor_info_text.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 vendor_info_text.insert(tk.END, "Hover over a point to see highest vendor scores.")
 vendor_info_text.config(state=tk.DISABLED)
 
 # Create a reset button
-reset_button = ttk.Button(side_frame, text="Reset View", command=reset_view)
-reset_button.pack(side=tk.BOTTOM, fill=tk.X, padx=10, pady=10)
+reset_button = ttk.Button(dialog_frame, text="Reset View", command=reset_view)
+reset_button.pack(fill=tk.X, padx=10, pady=10)
 
-# Add a search box and button to the side frame
-search_label = ttk.Label(side_frame, text="Search Objective:", style="TLabel")
-search_label.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
+# Add a search box and button to the dialog frame
+search_label = ttk.Label(dialog_frame, text="Search Objective:", style="TLabel")
+search_label.pack(fill=tk.X, padx=10, pady=5)
 
-search_entry = ttk.Entry(side_frame, width=25)
-search_entry.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
+search_entry = ttk.Entry(dialog_frame, width=25)
+search_entry.pack(fill=tk.X, padx=10, pady=5)
 
-search_button = ttk.Button(side_frame, text="Search", command=on_search)
-search_button.pack(side=tk.TOP, fill=tk.X, padx=10, pady=5)
+search_button = ttk.Button(dialog_frame, text="Search", command=on_search)
+search_button.pack(fill=tk.X, padx=10, pady=5)
+
+# Create a frame for vendor comparison plot
+vendor_comparison_frame = ttk.Frame(dialog_and_vendor_frame, padding="10")
+vendor_comparison_frame.grid(row=0, column=1, sticky="nsew")
+
+# Create a subplot for vendor comparison plot with locked aspect ratio
+vendor_comparison_fig, vendor_comparison_plot = plt.subplots()
+vendor_comparison_plot.set_xlabel('Vendors')
+vendor_comparison_plot.set_ylabel('Scores')
+vendor_comparison_plot.set_title('Top 5 Vendors Comparison')
+vendor_comparison_plot.grid(True)
+
+# Convert the subplot to a Tkinter Canvas
+vendor_comparison_canvas = FigureCanvasTkAgg(vendor_comparison_fig, master=vendor_comparison_frame)
+vendor_comparison_canvas.draw()
+vendor_comparison_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
 # Load existing points
 load_points()
 
+# Create a debug mode button
+debug_button = ttk.Button(root, text="Debug Mode", command=toggle_debug_mode)
+debug_button.pack(side=tk.BOTTOM, padx=10, pady=10, anchor=tk.SE)
+
 # Start the Tkinter event loop
-tk.mainloop()
+root.mainloop()
