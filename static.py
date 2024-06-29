@@ -10,10 +10,12 @@ import csv
 # Global variables
 points = []
 debug_mode = False  # Initially debug mode is off
+num_top_vendors = 5  # Default number of top vendors to display
+edit_mode = False  # Initially in view mode
 
 # Function to handle the click event for left mouse button
 def on_click(event):
-    if event.button == 1:  # Left mouse button
+    if edit_mode and event.button == 1:  # Left mouse button in edit mode
         x, y = event.xdata, event.ydata
         if x is not None and y is not None:
             # Prompt for vendor info
@@ -94,7 +96,7 @@ def update_vendor_comparison_plot(highest_scores):
     vendor_comparison_plot.bar(vendors, scores, color='skyblue')
     vendor_comparison_plot.set_xlabel('Vendors')
     vendor_comparison_plot.set_ylabel('Scores')
-    vendor_comparison_plot.set_title('Top 5 Vendors Comparison')
+    vendor_comparison_plot.set_title('Top Vendors Comparison')
     vendor_comparison_plot.set_xticklabels(vendors, rotation=45, ha='right')
     vendor_comparison_plot.grid(True)
 
@@ -140,9 +142,9 @@ def find_highest_scores(x, y):
     # Sort scores by score value in descending order
     scores.sort(key=lambda item: item[1], reverse=True)
 
-    # Retrieve top 5 scores
+    # Retrieve top scores based on selected number
     highest_scores = []
-    for vendor, score in scores[:5]:
+    for vendor, score in scores[:num_top_vendors]:
         highest_scores.append(f"{vendor}: {score}")
 
     return highest_scores
@@ -221,10 +223,7 @@ def move_pointer_to_coordinates(x, y):
     if x is not None and y is not None:
         ax.plot([x], [y], marker='o', markersize=10, color='red')
         ax.figure.canvas.draw()
-        # Display message in console or elsewhere since toolbar message is not available
-        print(f"Moved to objective at ({x}, {y})")
-
-        # Print debug message to console if debug mode is enabled
+        # Display message in console
         if debug_mode:
             debug_message = f"Moved to objective at ({x}, {y})"
             print(debug_message)
@@ -245,6 +244,24 @@ def toggle_debug_mode():
         print("Debug mode enabled.")
     else:
         print("Debug mode disabled.")
+
+# Function to toggle edit mode
+def toggle_edit_mode():
+    global edit_mode
+    edit_mode = not edit_mode
+    if edit_mode:
+        edit_mode_label.config(text="Edit Mode")
+        print("Edit mode enabled.")
+    else:
+        edit_mode_label.config(text="View Mode")
+        print("View mode enabled.")
+
+# Function to update the number of top vendors to display
+def update_num_top_vendors(event):
+    global num_top_vendors
+    num_top_vendors = int(num_top_vendors_combobox.get())
+    if debug_mode:
+        print(f"Number of top vendors to display updated to: {num_top_vendors}")
 
 # Initialize Tkinter
 root = tk.Tk()
@@ -326,6 +343,15 @@ search_entry.pack(fill=tk.X, padx=10, pady=5)
 search_button = ttk.Button(dialog_frame, text="Search", command=on_search)
 search_button.pack(fill=tk.X, padx=10, pady=5)
 
+# Add a combobox for selecting the number of top vendors to display
+num_top_vendors_label = ttk.Label(dialog_frame, text="Number of Top Vendors:", style="TLabel")
+num_top_vendors_label.pack(fill=tk.X, padx=10, pady=5)
+
+num_top_vendors_combobox = ttk.Combobox(dialog_frame, values=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], state='readonly')
+num_top_vendors_combobox.set(num_top_vendors)
+num_top_vendors_combobox.pack(fill=tk.X, padx=10, pady=5)
+num_top_vendors_combobox.bind('<<ComboboxSelected>>', update_num_top_vendors)
+
 # Create a frame for vendor comparison plot
 vendor_comparison_frame = ttk.Frame(dialog_and_vendor_frame, padding="10")
 vendor_comparison_frame.grid(row=0, column=1, sticky="nsew")
@@ -334,7 +360,7 @@ vendor_comparison_frame.grid(row=0, column=1, sticky="nsew")
 vendor_comparison_fig, vendor_comparison_plot = plt.subplots()
 vendor_comparison_plot.set_xlabel('Vendors')
 vendor_comparison_plot.set_ylabel('Scores')
-vendor_comparison_plot.set_title('Top 5 Vendors Comparison')
+vendor_comparison_plot.set_title('Top Vendors Comparison')
 vendor_comparison_plot.grid(True)
 
 # Convert the subplot to a Tkinter Canvas
@@ -345,9 +371,20 @@ vendor_comparison_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 # Load existing points
 load_points()
 
+# Create a frame for buttons at the bottom
+button_frame = ttk.Frame(root)
+button_frame.pack(side=tk.BOTTOM, fill=tk.X)
+
 # Create a debug mode button
-debug_button = ttk.Button(root, text="Debug Mode", command=toggle_debug_mode)
-debug_button.pack(side=tk.BOTTOM, padx=10, pady=10, anchor=tk.SE)
+debug_button = ttk.Button(button_frame, text="Debug Mode", command=toggle_debug_mode)
+debug_button.pack(side=tk.RIGHT, padx=10, pady=10)
+
+# Create an edit mode toggle button and label
+edit_mode_button = ttk.Button(button_frame, text="Toggle Edit Mode", command=toggle_edit_mode)
+edit_mode_button.pack(side=tk.RIGHT, padx=10, pady=10)
+
+edit_mode_label = ttk.Label(button_frame, text="View Mode")
+edit_mode_label.pack(side=tk.RIGHT, padx=10, pady=10)
 
 # Start the Tkinter event loop
 root.mainloop()
