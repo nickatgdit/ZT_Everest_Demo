@@ -1,8 +1,9 @@
 import pandas as pd
 
-def update_points_with_vendors(txt_file, csv_file):
+
+def update_points_with_vendors(txt_in, csv_in):
     # Read the data from the CSV file
-    df = pd.read_csv(csv_file)
+    df = pd.read_csv(csv_in)
 
     # Strip any leading/trailing whitespace from column names
     df.columns = df.columns.str.strip()
@@ -18,7 +19,7 @@ def update_points_with_vendors(txt_file, csv_file):
         objective_to_vendors[objective] = vendors
 
     # Read points from the points.txt file
-    with open(txt_file, 'r') as file:
+    with open(txt_in, 'r') as file:
         lines = file.readlines()
 
     # Update points with vendor information
@@ -45,11 +46,12 @@ def update_points_with_vendors(txt_file, csv_file):
             updated_lines.append(line)
 
     # Write the updated points back to the points.txt file
-    with open(txt_file, 'w') as file:
+    with open(txt_in, 'w') as file:
         file.writelines(updated_lines)
 
     # Final debug print to confirm writing to file
-    print(f"Updated points file saved as: {txt_file}")
+    print(f"Updated points file saved as: {txt_in}")
+
 
 # Example usage
 txt_file = 'points.txt'

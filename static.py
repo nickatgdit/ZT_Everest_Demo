@@ -13,6 +13,7 @@ debug_mode = False  # Initially debug mode is off
 num_top_vendors = 5  # Default number of top vendors to display
 edit_mode = False  # Initially in view mode
 
+
 # Function to handle the click event for left mouse button
 def on_click(event):
     if edit_mode and event.button == 1:  # Left mouse button in edit mode
@@ -27,6 +28,7 @@ def on_click(event):
                 points.append({'x': x, 'y': y, 'vendor_info': vendor_info})
                 update_scatter()  # Update scatter plot
                 ax.figure.canvas.draw()  # Redraw the figure
+
 
 # Function that displays the vendor info based on hover within detection radius.
 def on_motion(event):
@@ -73,11 +75,13 @@ def on_motion(event):
         if debug_mode:
             print(debug_message)
 
+
 # Function to update the scatter plot
 def update_scatter():
     colors = ['grey'] * len(points)
     scatter.set_offsets([[p['x'], p['y']] for p in points])
     scatter.set_color(colors)
+
 
 # Function to update the vendor comparison plot
 def update_vendor_comparison_plot(highest_scores):
@@ -108,6 +112,7 @@ def update_vendor_comparison_plot(highest_scores):
         debug_message = f"Updated vendor comparison plot with scores: {highest_scores}"
         print(debug_message)
 
+
 # Function to clear the vendor comparison plot
 def clear_vendor_comparison_plot():
     # Clear plot and redraw canvas
@@ -117,6 +122,7 @@ def clear_vendor_comparison_plot():
     # Print debug message to console if debug mode is enabled
     if debug_mode:
         print("Cleared vendor comparison plot.")
+
 
 # Function to find the highest scores for a given point
 def find_highest_scores(x, y):
@@ -149,6 +155,7 @@ def find_highest_scores(x, y):
 
     return highest_scores
 
+
 # Function to handle scroll event for zooming
 def on_scroll(event):
     x, y = event.xdata, event.ydata
@@ -174,6 +181,7 @@ def on_scroll(event):
         if debug_mode:
             debug_message = f"Zoomed in at ({x:.2f}, {y:.2f}) with scale factor {scale_factor:.2f}"
             print(debug_message)
+
 
 # Function to load points from the TXT file
 def load_points():
@@ -201,6 +209,7 @@ def load_points():
     if debug_mode:
         print("Loaded points from points.txt file.")
 
+
 # Function to reset the view to the original limits
 def reset_view():
     ax.set_xlim(original_xlim)
@@ -211,12 +220,14 @@ def reset_view():
     if debug_mode:
         print("Reset view to original limits.")
 
+
 # Function to find the coordinates of an objective
 def find_coordinates(objective):
     for point in points:
         if point['vendor_info'] == objective:
             return point['x'], point['y']
     return None, None
+
 
 # Function to move mouse pointer to the given coordinates
 def move_pointer_to_coordinates(x, y):
@@ -230,11 +241,13 @@ def move_pointer_to_coordinates(x, y):
     else:
         print("Invalid objective.")
 
+
 # Function to search for an objective
 def on_search():
     objective = search_entry.get()
     x, y = find_coordinates(objective)
     move_pointer_to_coordinates(x, y)
+
 
 # Function to toggle debug mode
 def toggle_debug_mode():
@@ -244,6 +257,7 @@ def toggle_debug_mode():
         print("Debug mode enabled.")
     else:
         print("Debug mode disabled.")
+
 
 # Function to toggle edit mode
 def toggle_edit_mode():
@@ -256,12 +270,14 @@ def toggle_edit_mode():
         edit_mode_label.config(text="View Mode")
         print("View mode enabled.")
 
+
 # Function to update the number of top vendors to display
 def update_num_top_vendors(event):
     global num_top_vendors
     num_top_vendors = int(num_top_vendors_combobox.get())
     if debug_mode:
         print(f"Number of top vendors to display updated to: {num_top_vendors}")
+
 
 # Initialize Tkinter
 root = tk.Tk()
