@@ -35,7 +35,7 @@ def on_motion(event):
     x, y = event.xdata, event.ydata
     if x is not None and y is not None:
         xlim = ax.get_xlim()
-        ylim = ax.get_ylim()
+        ylim = ax.get_ylim()  # Maintained just in case
         detection_radius = 0.01 * (xlim[1] - xlim[0])  # 1% of the current x-axis range
         colors = ['grey'] * len(points)
         highest_scores = []
@@ -363,7 +363,7 @@ search_button.pack(fill=tk.X, padx=10, pady=5)
 num_top_vendors_label = ttk.Label(dialog_frame, text="Number of Top Vendors:", style="TLabel")
 num_top_vendors_label.pack(fill=tk.X, padx=10, pady=5)
 
-num_top_vendors_combobox = ttk.Combobox(dialog_frame, values=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], state='readonly')
+num_top_vendors_combobox = ttk.Combobox(dialog_frame, values=['1', '2', '3', '4', '5', '6', '7', '8', '9', '10'], state='readonly')
 num_top_vendors_combobox.set(num_top_vendors)
 num_top_vendors_combobox.pack(fill=tk.X, padx=10, pady=5)
 num_top_vendors_combobox.bind('<<ComboboxSelected>>', update_num_top_vendors)
