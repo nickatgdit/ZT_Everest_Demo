@@ -1,16 +1,32 @@
 import tkinter as tk
-from tkinter import ttk, simpledialog, filedialog, messagebox
+from tkinter import ttk, simpledialog, messagebox
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.image as mpimg
 import csv
 import subprocess
+from matplotlib.colors import Normalize
 
 # Global variables
 points = []
 edit_mode = False
 default_font_size = 8
 slider = None  # Initialize slider as None globally
+vendor_totals = {}
+
+# Custom colormap for point colors
+def get_color_for_percentage(percentage):
+    if percentage < 80:
+        # Desaturated green
+        return (0.6, 0.8, 0.6)
+    elif percentage <= 100:
+        # Green
+        return (0, 1, 0)
+    else:
+        # Increasingly red
+        norm = Normalize(vmin=100, vmax=200)
+        red_intensity = norm(percentage)  # Normalize to 0-1 range
+        return (1, 1 - red_intensity, 1 - red_intensity)
 
 # Function to handle click event on the graph
 def on_click(event):
@@ -27,38 +43,52 @@ def on_click(event):
 
 # Function to update the scatter plot with points and text size
 def update_scatter():
-    global points, slider
-    scatter.set_offsets([[p['x'], p['y']] for p in points])
+    global points, slider, vendor_totals
+    # Calculate font size based on slider value
+    font_size = int(slider.get()) if slider else default_font_size
 
-    # Clear existing annotations
+    # Clear existing points and annotations
+    scatter.set_offsets([[0, 0]])
     for annotation in ax.texts:
         annotation.remove()
 
-    # Ensure slider is defined before accessing it
-    if slider:
-        # Calculate font size based on slider value
-        font_size = int(slider.get())
-    else:
-        font_size = default_font_size
+    if points:
+        # Create new points and annotations
+        offsets = []
+        colors = []
+        for point in points:
+            x = point['x']
+            y = point['y']
+            vendor_info = point['vendor_info']
 
-    # Add new annotations with vendor totals
-    for point in points:
-        x = point['x']
-        y = point['y']
-        vendor_info = point['vendor_info']
+            # Retrieve vendor total from vendor_totals
+            vendor_total = vendor_totals.get(vendor_info, "N/A")
+            if vendor_total != "N/A":
+                try:
+                    vendor_total = vendor_total.replace('%', '')
+                    percentage = float(vendor_total)
+                except ValueError:
+                    percentage = 0.0
+            else:
+                percentage = 0.0
 
-        # Retrieve vendor total from totals.txt
-        vendor_total = get_vendor_total(vendor_info)
+            # Append point data
+            offsets.append([x, y])
+            colors.append(get_color_for_percentage(percentage))
 
-        # Create text annotation with vendor total
-        ax.text(x, y, f'Total: {vendor_total}', fontsize=font_size, ha='center', va='center', color='black')
+            # Create text annotation with vendor total
+            ax.text(x, y, f'Total: {vendor_total}%', fontsize=font_size, ha='center', va='center', color='black')
+
+        scatter.set_offsets(offsets)
+        scatter.set_color(colors)
 
     ax.figure.canvas.draw()
 
 # Function to load points from the text file
 def load_points_from_file():
-    global points
+    global points, vendor_totals
     points = []
+    vendor_totals = {}
     try:
         with open("totals.txt", "r") as f:
             reader = csv.reader(f)
@@ -67,6 +97,8 @@ def load_points_from_file():
                     try:
                         x, y, vendor_info = float(row[0]), float(row[1]), row[2]
                         points.append({'x': x, 'y': y, 'vendor_info': vendor_info})
+                        if len(row) >= 4:
+                            vendor_totals[vendor_info] = row[3]
                     except (ValueError, IndexError):
                         # Handle cases where conversion to float fails or index out of range
                         print(f"Ignoring invalid row: {row}")
@@ -76,19 +108,6 @@ def load_points_from_file():
     except FileNotFoundError:
         # Handle case where file does not exist initially
         print("File 'totals.txt' not found!")
-
-# Function to retrieve vendor total from totals.txt
-def get_vendor_total(vendor_info):
-    try:
-        with open("totals.txt", "r") as f:
-            for line in f:
-                parts = line.strip().split(',')
-                if len(parts) >= 4 and parts[2] == vendor_info:
-                    return parts[3]
-    except FileNotFoundError:
-        print("File 'totals.txt' not found!")
-
-    return "N/A"
 
 # Function to toggle between edit mode and view mode
 def toggle_edit_mode():
@@ -106,7 +125,8 @@ def update_font_size(value):
 # Function to process data from data.csv based on objective classifications
 def process_data_from_csv():
     try:
-        subprocess.run(['python3', 'process_totals.py'])
+        subprocess.run(['python', 'process_totals.py'])
+        load_points_from_file()  # Reload points after processing
     except FileNotFoundError:
         messagebox.showerror("Error", "process_totals.py not found!")
 
@@ -129,7 +149,7 @@ ax.set_aspect('auto')  # Maintain the aspect ratio of the image
 ax.set_axis_off()  # Hide axes to prevent the image from moving
 
 # Initialize scatter plot for points
-scatter = ax.scatter([], [], color='red', s=50)
+scatter = ax.scatter([], [], s=50)
 
 # Connect the click event to the on_click function
 fig.canvas.mpl_connect('button_press_event', on_click)
