@@ -1,6 +1,5 @@
 import pandas as pd
 
-
 def update_points_with_vendors(txt_in, csv_in):
     # Read the data from the CSV file
     df = pd.read_csv(csv_in)
@@ -28,20 +27,14 @@ def update_points_with_vendors(txt_in, csv_in):
         parts = line.strip().split(',')
         if len(parts) >= 3:
             x, y, objective = parts[:3]  # Extract x, y, and objective
-            # Debug print to check each point being processed
-            print(f"Processing point: {x}, {y}, {objective}")
             # Adjust objective format if needed (e.g., remove "OBJ ")
             objective = objective.replace("OBJ ", "")
             if objective in objective_to_vendors:
                 vendors_info = ", ".join([f"{k}: {v}" for k, v in objective_to_vendors[objective].items()])
                 updated_line = f"{x},{y},{objective},{vendors_info}\n"
                 updated_lines.append(updated_line)
-                # Debug print to check the updated line
-                print(f"Updated line: {updated_line}")
             else:
                 updated_lines.append(line)
-                # Debug print for unmatched objective
-                print(f"No vendor info for objective: {objective}")
         else:
             updated_lines.append(line)
 
@@ -49,12 +42,15 @@ def update_points_with_vendors(txt_in, csv_in):
     with open(txt_in, 'w') as file:
         file.writelines(updated_lines)
 
-    # Final debug print to confirm writing to file
     print(f"Updated points file saved as: {txt_in}")
 
+def main():
+    # Define input files
+    txt_file = 'points.txt'
+    csv_file = 'data.csv'
 
-# Example usage
-txt_file = 'points.txt'
-csv_file = 'data.csv'
+    # Call function to update points with vendor information
+    update_points_with_vendors(txt_file, csv_file)
 
-update_points_with_vendors(txt_file, csv_file)
+if __name__ == "__main__":
+    main()

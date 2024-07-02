@@ -10,9 +10,11 @@ from matplotlib.colors import Normalize
 # Global variables
 points = []
 edit_mode = False
-default_font_size = 8
+default_font_size = 10
 slider = None  # Initialize slider as None globally
 vendor_totals = {}
+vendor_data = []  # List to store vendor data
+vendor_table = None  # Initialize vendor_table globally
 
 # Custom colormap for point colors
 def get_color_for_percentage(percentage):
@@ -109,6 +111,57 @@ def load_points_from_file():
         # Handle case where file does not exist initially
         print("File 'totals.txt' not found!")
 
+# Function to load vendor data from the text file
+def load_vendor_data_from_file():
+    global vendor_data
+    vendor_data = []
+    try:
+        with open("vendor_totals.txt", "r") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    parts = line.split(',')
+                    if len(parts) >= 2:
+                        vendor_name = parts[2].strip()  # Third entry as vendor name
+                        percentages = [part.strip() for part in parts[3:]]  # Remaining entries as percentages
+                        vendor_data.append({'vendor_name': vendor_name, 'percentages': percentages})
+                    else:
+                        print(f"Ignoring invalid line: {line}")
+        update_vendor_table()  # Update vendor table after loading data
+    except FileNotFoundError:
+        print("File 'vendor_totals.txt' not found!")
+
+# Function to update the vendor table with loaded data
+def update_vendor_table():
+    global vendor_table
+    if vendor_table is None:
+        return
+
+    # Clear existing table rows and columns
+    vendor_table.delete(*vendor_table.get_children())
+
+    # Define column structure
+    columns = ["Pillar Classification"]
+    for i in range(1, 36):
+        columns.append(f"Vendor Name {i}")
+        columns.append(f"Percentage {i}")
+
+    # Insert Pillar Label
+    columns.insert(0, "Pillar Classification")
+
+    # Set columns and headings
+    vendor_table["columns"] = columns
+
+    for i, col in enumerate(columns):
+        vendor_table.heading(f"#{i}", text=col)
+
+    # Insert data into the table
+    for i, data in enumerate(vendor_data):
+        vendor_name = data['vendor_name']
+        percentages = data['percentages']
+        values = [vendor_name] + percentages
+        vendor_table.insert("", tk.END, iid=i, values=values)
+
 # Function to toggle between edit mode and view mode
 def toggle_edit_mode():
     global edit_mode
@@ -130,66 +183,65 @@ def process_data_from_csv():
     except FileNotFoundError:
         messagebox.showerror("Error", "process_totals.py not found!")
 
-# Initialize tkinter
-root = tk.Tk()
-root.title("Vendor Points Tracker")
+def main():
+    global root, canvas, fig, ax, scatter, vendor_table
 
-# Create a main frame
-main_frame = ttk.Frame(root)
-main_frame.pack(fill=tk.BOTH, expand=True)
+    # Initialize tkinter
+    root = tk.Tk()
+    root.title("Vendor Points Tracker")
 
-# Load image for the chart
-img = mpimg.imread('packaged/DoDFanChart_CLEARED.png')
-img_height, img_width, _ = img.shape
+    # Create a main frame
+    main_frame = ttk.Frame(root)
+    main_frame.pack(fill=tk.BOTH, expand=True)
 
-# Create a figure and axis with locked aspect ratio
-fig, ax = plt.subplots()
-ax.imshow(img, extent=[0, img_width, 0, img_height])
-ax.set_aspect('auto')  # Maintain the aspect ratio of the image
-ax.set_axis_off()  # Hide axes to prevent the image from moving
+    # Load image for the chart
+    img = mpimg.imread('packaged/DoDFanChart_CLEARED.png')
+    img_height, img_width, _ = img.shape
 
-# Initialize scatter plot for points
-scatter = ax.scatter([], [], s=50)
+    # Create a figure and axis with locked aspect ratio
+    fig, ax = plt.subplots()
+    ax.imshow(img, extent=[0, img_width, 0, img_height])
+    ax.set_aspect('auto')  # Maintain the aspect ratio of the image
+    ax.set_axis_off()  # Hide axes to prevent the image from moving
 
-# Connect the click event to the on_click function
-fig.canvas.mpl_connect('button_press_event', on_click)
+    # Initialize scatter plot for points
+    scatter = ax.scatter([], [], s=50)
 
-# Convert matplotlib figure to tkinter canvas
-canvas = FigureCanvasTkAgg(fig, master=main_frame)
-canvas.draw()
-canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+    # Connect the click event to the on_click function
+    fig.canvas.mpl_connect('button_press_event', on_click)
 
-# Load existing points from the file
-load_points_from_file()
+    # Convert matplotlib figure to tkinter canvas
+    canvas = FigureCanvasTkAgg(fig, master=main_frame)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
-# Create a menu bar
-menubar = tk.Menu(root)
-root.config(menu=menubar)
+    # Load existing points from the file
+    load_points_from_file()
 
-# Create a "Data Processing" menu
-data_menu = tk.Menu(menubar, tearoff=0)
-menubar.add_cascade(label="Data Processing", menu=data_menu)
-data_menu.add_command(label="Process Data", command=process_data_from_csv)
+    # Create a Treeview widget for the vendor data table with horizontal scrollbar
+    vendor_table_frame = ttk.Frame(main_frame)
+    vendor_table_frame.pack(pady=20, fill=tk.BOTH, expand=True)
 
-# Create an "Edit Mode" toggle button
-edit_mode_button = ttk.Button(main_frame, text="Toggle Edit Mode", command=toggle_edit_mode)
-edit_mode_button.pack(side=tk.BOTTOM, padx=10, pady=10)
+    vendor_table_scroll = ttk.Scrollbar(vendor_table_frame, orient=tk.HORIZONTAL)
+    vendor_table_scroll.pack(side=tk.BOTTOM, fill=tk.X)
 
-# Create a label and scale widget for font size control
-label = ttk.Label(main_frame, text="Data Point Text Size")
-label.pack(side=tk.LEFT, padx=10, pady=10)
+    vendor_table = ttk.Treeview(vendor_table_frame, columns=(), show='headings', xscrollcommand=vendor_table_scroll.set)
+    vendor_table_scroll.config(command=vendor_table.xview)
+    vendor_table.pack(fill=tk.BOTH, expand=True)
 
-slider = tk.Scale(main_frame, from_=8, to=20, orient=tk.VERTICAL, command=update_font_size)
-slider.set(default_font_size)
-slider.pack(side=tk.LEFT, padx=10, pady=10)
+    # Load vendor data from file
+    load_vendor_data_from_file()
 
-# Function to handle closing the application
-def on_close():
-    if messagebox.askokcancel("Quit", "Do you want to quit?"):
-        root.destroy()
+    # Function to handle closing the application
+    def on_close():
+        if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            root.destroy()
 
-# Bind closing event to on_close function
-root.protocol("WM_DELETE_WINDOW", on_close)
+    # Bind closing event to on_close function
+    root.protocol("WM_DELETE_WINDOW", on_close)
 
-# Start the tkinter main loop
-root.mainloop()
+    # Start the tkinter main loop
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
