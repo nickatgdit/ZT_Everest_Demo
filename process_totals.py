@@ -8,13 +8,23 @@ def calculate_list_total(objective_list, objective_totals):
             total += objective_totals[objective]
     return total
 
-# Function to calculate percentage
-def calculate_percentage(total, count):
+# Function to calculate percentage based on the superscored method
+def calculate_superscored_percentage(total, max_possible_score):
+    if max_possible_score == 0:
+        return 0.0
+    return (total / max_possible_score) * 100
+
+# Function to calculate percentage using the previous method (unspecified)
+def calculate_previous_percentage(total, count):
     if count == 0:
         return 0.0
     return (total / count) * 100
 
-def main():
+# Function to calculate maximum possible score for a list of objectives
+def calculate_max_possible_score(objective_list, max_score_per_objective):
+    return len(objective_list) * max_score_per_objective
+
+def main(use_superscored_percentage=True):
     # Step 1: Read data.csv and calculate objective totals
     objective_totals = {}
     with open('data.csv', mode='r') as csv_file:
@@ -69,38 +79,55 @@ def main():
         '7.3.2', '7.4.1', '7.5.1', '7.4.2', '7.4.3', '7.4.4', '7.6.1', '7.6.2'
     ]
 
-    # Step 3: Calculate totals for each list
+    # Maximum score per objective
+    max_score_per_objective = 2
+
+    # Step 3: Calculate totals and max possible scores for each list
     user_target_total = calculate_list_total(user_target_objectives, objective_totals)
+    user_target_max = calculate_max_possible_score(user_target_objectives, max_score_per_objective)
     user_advanced_total = calculate_list_total(user_advanced_objectives, objective_totals)
+    user_advanced_max = calculate_max_possible_score(user_advanced_objectives, max_score_per_objective)
     device_target_total = calculate_list_total(device_target_objectives, objective_totals)
+    device_target_max = calculate_max_possible_score(device_target_objectives, max_score_per_objective)
     device_advanced_total = calculate_list_total(device_advanced_objectives, objective_totals)
+    device_advanced_max = calculate_max_possible_score(device_advanced_objectives, max_score_per_objective)
     application_workload_target_total = calculate_list_total(application_workload_target_objectives, objective_totals)
+    application_workload_target_max = calculate_max_possible_score(application_workload_target_objectives, max_score_per_objective)
     application_workload_advanced_total = calculate_list_total(application_workload_advanced_objectives, objective_totals)
+    application_workload_advanced_max = calculate_max_possible_score(application_workload_advanced_objectives, max_score_per_objective)
     data_target_total = calculate_list_total(data_target_objectives, objective_totals)
+    data_target_max = calculate_max_possible_score(data_target_objectives, max_score_per_objective)
     data_advanced_total = calculate_list_total(data_advanced_objectives, objective_totals)
+    data_advanced_max = calculate_max_possible_score(data_advanced_objectives, max_score_per_objective)
     network_environment_target_total = calculate_list_total(network_environment_target_objectives, objective_totals)
+    network_environment_target_max = calculate_max_possible_score(network_environment_target_objectives, max_score_per_objective)
     network_environment_advanced_total = calculate_list_total(network_environment_advanced_objectives, objective_totals)
+    network_environment_advanced_max = calculate_max_possible_score(network_environment_advanced_objectives, max_score_per_objective)
     automation_orchestration_target_total = calculate_list_total(automation_orchestration_target_objectives, objective_totals)
+    automation_orchestration_target_max = calculate_max_possible_score(automation_orchestration_target_objectives, max_score_per_objective)
     automation_orchestration_advanced_total = calculate_list_total(automation_orchestration_advanced_objectives, objective_totals)
+    automation_orchestration_advanced_max = calculate_max_possible_score(automation_orchestration_advanced_objectives, max_score_per_objective)
     visibility_analytics_target_total = calculate_list_total(visibility_analytics_target_objectives, objective_totals)
+    visibility_analytics_target_max = calculate_max_possible_score(visibility_analytics_target_objectives, max_score_per_objective)
     visibility_analytics_advanced_total = calculate_list_total(visibility_analytics_advanced_objectives, objective_totals)
+    visibility_analytics_advanced_max = calculate_max_possible_score(visibility_analytics_advanced_objectives, max_score_per_objective)
 
     # Step 4: Prepare master dictionary and objectives lists
     master_dict = {
-        "User: Target": user_target_total,
-        "User: Advanced": user_advanced_total,
-        "Device: Target": device_target_total,
-        "Device: Advanced": device_advanced_total,
-        "Application & Workload: Target": application_workload_target_total,
-        "Application & Workload: Advanced": application_workload_advanced_total,
-        "Data: Target": data_target_total,
-        "Data: Advanced": data_advanced_total,
-        "Network & Environment: Target": network_environment_target_total,
-        "Network & Environment: Advanced": network_environment_advanced_total,
-        "Automation & Orchestration: Target": automation_orchestration_target_total,
-        "Automation & Orchestration: Advanced": automation_orchestration_advanced_total,
-        "Visibility & Analytics: Target": visibility_analytics_target_total,
-        "Visibility & Analytics: Advanced": visibility_analytics_advanced_total
+        "User: Target": (user_target_total, user_target_max),
+        "User: Advanced": (user_advanced_total, user_advanced_max),
+        "Device: Target": (device_target_total, device_target_max),
+        "Device: Advanced": (device_advanced_total, device_advanced_max),
+        "Application & Workload: Target": (application_workload_target_total, application_workload_target_max),
+        "Application & Workload: Advanced": (application_workload_advanced_total, application_workload_advanced_max),
+        "Data: Target": (data_target_total, data_target_max),
+        "Data: Advanced": (data_advanced_total, data_advanced_max),
+        "Network & Environment: Target": (network_environment_target_total, network_environment_target_max),
+        "Network & Environment: Advanced": (network_environment_advanced_total, network_environment_advanced_max),
+        "Automation & Orchestration: Target": (automation_orchestration_target_total, automation_orchestration_target_max),
+        "Automation & Orchestration: Advanced": (automation_orchestration_advanced_total, automation_orchestration_advanced_max),
+        "Visibility & Analytics: Target": (visibility_analytics_target_total, visibility_analytics_target_max),
+        "Visibility & Analytics: Advanced": (visibility_analytics_advanced_total, visibility_analytics_advanced_max)
     }
 
     objectives_lists = {
@@ -130,9 +157,12 @@ def main():
         if len(parts) >= 3:  # Ensure there are at least 3 parts (to check key)
             key = parts[2].strip()
             if key in master_dict:
-                updated_value = master_dict[key]
+                total, max_possible_score = master_dict[key]
                 objectives_list = objectives_lists[key]
-                updated_percentage = calculate_percentage(updated_value, len(objectives_list) * 35)
+                if use_superscored_percentage:
+                    updated_percentage = calculate_superscored_percentage(total, max_possible_score)
+                else:
+                    updated_percentage = calculate_previous_percentage(total, len(objectives_list) * 35)
                 updated_line = f"{parts[0]},{parts[1]},{parts[2]},{updated_percentage:.2f}%\n"
                 updated_lines.append(updated_line)
             else:
@@ -146,10 +176,14 @@ def main():
 
     # Step 7: Print statements with percentage calculation
     print("totals.txt has been updated successfully.")
-    for key, total in master_dict.items():
-        count = len(objectives_lists[key]) * 35
-        percentage = calculate_percentage(total, count)
-        print(f"{key}: {total}, with count of {count}, percentage: {percentage:.2f}%")
+    for key, (total, max_score) in master_dict.items():
+        if use_superscored_percentage:
+            percentage = calculate_superscored_percentage(total, max_score)
+        else:
+            percentage = calculate_previous_percentage(total, len(objectives_lists[key]) * 35)
+        print(f"{key}: {total}, with {'max possible score' if use_superscored_percentage else 'count of'} {max_score}, percentage: {percentage:.2f}%")
 
 if __name__ == "__main__":
-    main()
+    # Set this flag to True or False to choose between superscored percentage and previous method
+    use_superscored_percentage = True
+    main(use_superscored_percentage)
