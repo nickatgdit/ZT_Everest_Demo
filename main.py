@@ -7,6 +7,7 @@ import totals
 import process_vendor_totals  # Import the module
 import os
 import pandas as pd
+import re
 
 # Function to execute static.py
 def run_static():
@@ -46,13 +47,17 @@ def run_process_vendor_totals():
 # Function to run all scripts
 def run_all_scripts():
     try:
+        run_totals()
         run_static()
         run_process_totals()
         run_vendor_sync()
-        run_totals()
         run_process_vendor_totals()
     except Exception as e:
         messagebox.showerror("Error", f"Error running all scripts: {e}")
+
+# Function to clean vendor names for processing
+def clean_vendor_name(name):
+    return re.sub(r'\s*\([^)]*\)', '', name).strip()  # Cleans the vendor name with regex formatting logic
 
 # Function to select and replace "data.csv"
 def select_data_file():
@@ -65,8 +70,9 @@ def select_data_file():
             # Extract vendor names
             vendor_names = []
             col_index = 2
-            while not pd.isna(df.iloc[1, col_index]):
-                vendor_names.append(df.iloc[1, col_index])
+            while col_index < df.shape[1] and not pd.isna(df.iloc[1, col_index]):
+                vendor_name = clean_vendor_name(df.iloc[1, col_index])
+                vendor_names.append(vendor_name)
                 col_index += 1
 
             # Create the header for the CSV
