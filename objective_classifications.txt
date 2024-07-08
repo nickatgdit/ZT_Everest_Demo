@@ -116,7 +116,8 @@ ADVANCED:
         1.6.3 User Activity Monitoring Pt. 2
         1.8.3 Continuous Authentication Pt. 1
         1.8.4 Continuous Authentication Pt. 2
-        1.9.1 Enterprise PKI/IDP Pt. 2
+        1.9.1 Enterprise PKI/IDP Pt. 1
+        1.9.2 Enterprise PKI/IDP Pt. 2
         1.9.3 Enterprise PKI/IDP Pt. 3
     Device:
         2.1.4 Enterprise IDP Pt. 2

@@ -15,6 +15,8 @@ slider = None  # Initialize slider as None globally
 vendor_totals = {}
 vendor_data = []  # List to store vendor data
 vendor_table = None  # Initialize vendor_table globally
+color_enabled = False  # Global variable to control color state
+
 
 # Custom colormap for point colors
 def get_color_for_percentage(percentage):
@@ -30,6 +32,7 @@ def get_color_for_percentage(percentage):
         red_intensity = norm(percentage)  # Normalize to 0-1 range
         return (1, 1 - red_intensity, 1 - red_intensity)
 
+
 # Function to handle click event on the graph
 def on_click(event):
     global points, edit_mode
@@ -43,9 +46,10 @@ def on_click(event):
                 points.append({'x': x, 'y': y, 'vendor_info': vendor_info})
                 update_scatter()  # Update scatter plot
 
+
 # Function to update the scatter plot with points and text size
 def update_scatter():
-    global points, slider, vendor_totals
+    global points, slider, vendor_totals, color_enabled
     # Calculate font size based on slider value
     font_size = int(slider.get()) if slider else default_font_size
 
@@ -63,8 +67,11 @@ def update_scatter():
             y = point['y']
             vendor_info = point['vendor_info']
 
-            # Retrieve vendor total from vendor_totals
-            vendor_total = vendor_totals.get(vendor_info, "N/A")
+            # Retrieve vendor total and gap info from vendor_totals
+            vendor_total_info = vendor_totals.get(vendor_info, {"total": "N/A", "gaps": "N/A"})
+            vendor_total = vendor_total_info["total"]
+            gap_info = vendor_total_info["gaps"]
+
             if vendor_total != "N/A":
                 try:
                     vendor_total = vendor_total.replace('%', '')
@@ -76,15 +83,22 @@ def update_scatter():
 
             # Append point data
             offsets.append([x, y])
-            colors.append(get_color_for_percentage(percentage))
+            if color_enabled:
+                colors.append(get_color_for_percentage(percentage))
+            else:
+                colors.append((0, 0, 0, 0))  # Transparent color
 
-            # Create text annotation with vendor total
-            ax.text(x, y, f'Total: {vendor_total}%', fontsize=font_size, ha='center', va='center', color='black')
+            # Create text annotation with vendor total and gaps if gaps exist
+            annotation_text = f'Total: {vendor_total}%'
+            if gap_info and gap_info.strip() != "0 ()":
+                annotation_text += f', Gaps: {gap_info}'
+            ax.text(x, y, annotation_text, fontsize=font_size, ha='center', va='center', color='black')
 
         scatter.set_offsets(offsets)
         scatter.set_color(colors)
 
     ax.figure.canvas.draw()
+
 
 # Function to load points from the text file
 def load_points_from_file():
@@ -95,12 +109,15 @@ def load_points_from_file():
         with open("totals.txt", "r") as f:
             reader = csv.reader(f)
             for row in reader:
-                if len(row) >= 3:  # Ensure row has at least 3 elements
+                if len(row) >= 5:  # Ensure row has at least 5 elements
                     try:
-                        x, y, vendor_info = float(row[0]), float(row[1]), row[2]
+                        x, y = float(row[0]), float(row[1])
+                        vendor_info = row[2]
+                        total = row[3]
+                        gaps = ','.join(row[4:])  # Join the rest of the row to handle commas in gap names
                         points.append({'x': x, 'y': y, 'vendor_info': vendor_info})
-                        if len(row) >= 4:
-                            vendor_totals[vendor_info] = row[3]
+                        vendor_totals[vendor_info] = {"total": total, "gaps": gaps}
+                        print(f"Loaded vendor info: {vendor_info}, Total: {total}, Gaps: {gaps}")
                     except (ValueError, IndexError):
                         # Handle cases where conversion to float fails or index out of range
                         print(f"Ignoring invalid row: {row}")
@@ -110,6 +127,7 @@ def load_points_from_file():
     except FileNotFoundError:
         # Handle case where file does not exist initially
         print("File 'totals.txt' not found!")
+
 
 # Function to load vendor data from the text file
 def load_vendor_data_from_file():
@@ -131,6 +149,7 @@ def load_vendor_data_from_file():
     except FileNotFoundError:
         print("File 'vendor_totals.txt' not found!")
 
+
 # Function to update the vendor table with loaded data
 def update_vendor_table():
     global vendor_table
@@ -146,14 +165,12 @@ def update_vendor_table():
         columns.append(f"Vendor Name {i}")
         columns.append(f"Percentage {i}")
 
-    # Insert Pillar Label
-    columns.insert(0, "Pillar Classification")
-
     # Set columns and headings
     vendor_table["columns"] = columns
 
-    for i, col in enumerate(columns):
-        vendor_table.heading(f"#{i}", text=col)
+    for col in columns:
+        vendor_table.heading(col, text=col)
+        vendor_table.column(col, anchor='center', stretch=tk.NO, width=100)
 
     # Insert data into the table
     for i, data in enumerate(vendor_data):
@@ -161,6 +178,17 @@ def update_vendor_table():
         percentages = data['percentages']
         values = [vendor_name] + percentages
         vendor_table.insert("", tk.END, iid=i, values=values)
+
+    # Add alternating row colors
+    vendor_table.tag_configure('oddrow', background='lightgrey')
+    vendor_table.tag_configure('evenrow', background='white')
+
+    for i, item in enumerate(vendor_table.get_children()):
+        if i % 2 == 0:
+            vendor_table.item(item, tags=('evenrow',))
+        else:
+            vendor_table.item(item, tags=('oddrow',))
+
 
 # Function to toggle between edit mode and view mode
 def toggle_edit_mode():
@@ -171,9 +199,18 @@ def toggle_edit_mode():
     else:
         messagebox.showinfo("View Mode", "View Mode: Clicks do not add points")
 
+
 # Function to handle font size slider update
 def update_font_size(value):
     update_scatter()
+
+
+# Function to toggle color state
+def toggle_color_state():
+    global color_enabled
+    color_enabled = not color_enabled
+    update_scatter()
+
 
 # Function to process data from data.csv based on objective classifications
 def process_data_from_csv():
@@ -183,6 +220,7 @@ def process_data_from_csv():
     except FileNotFoundError:
         messagebox.showerror("Error", "process_totals.py not found!")
 
+
 def main():
     global root, canvas, fig, ax, scatter, vendor_table
 
@@ -190,9 +228,18 @@ def main():
     root = tk.Tk()
     root.title("Vendor Points Tracker")
 
-    # Create a main frame
-    main_frame = ttk.Frame(root)
-    main_frame.pack(fill=tk.BOTH, expand=True)
+    # Set window size to be more square
+    window_size = 800  # Set the size to 800x800 for a square window
+    root.geometry(f"{window_size}x{window_size}")
+
+    # Create a PanedWindow to make the image and table resizable
+    paned_window = tk.PanedWindow(root, orient=tk.VERTICAL)
+    paned_window.pack(fill=tk.BOTH, expand=True)
+
+    # Create a frame for the image and make it resizable
+    image_frame = ttk.Frame(paned_window)
+    paned_window.add(image_frame)
+    paned_window.paneconfig(image_frame, stretch='always')
 
     # Load image for the chart
     img = mpimg.imread('packaged/DoDFanChart_CLEARED.png')
@@ -211,26 +258,32 @@ def main():
     fig.canvas.mpl_connect('button_press_event', on_click)
 
     # Convert matplotlib figure to tkinter canvas
-    canvas = FigureCanvasTkAgg(fig, master=main_frame)
+    canvas = FigureCanvasTkAgg(fig, master=image_frame)
     canvas.draw()
     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
     # Load existing points from the file
     load_points_from_file()
 
-    # Create a Treeview widget for the vendor data table with horizontal scrollbar
-    vendor_table_frame = ttk.Frame(main_frame)
-    vendor_table_frame.pack(pady=20, fill=tk.BOTH, expand=True)
+    # Create a frame for the vendor table and make it resizable
+    table_frame = ttk.Frame(paned_window)
+    paned_window.add(table_frame)
+    paned_window.paneconfig(table_frame, stretch='always')
 
-    vendor_table_scroll = ttk.Scrollbar(vendor_table_frame, orient=tk.HORIZONTAL)
+    # Create a Treeview widget for the vendor data table with horizontal scrollbar
+    vendor_table_scroll = ttk.Scrollbar(table_frame, orient=tk.HORIZONTAL)
     vendor_table_scroll.pack(side=tk.BOTTOM, fill=tk.X)
 
-    vendor_table = ttk.Treeview(vendor_table_frame, columns=(), show='headings', xscrollcommand=vendor_table_scroll.set)
+    vendor_table = ttk.Treeview(table_frame, columns=(), show='headings', xscrollcommand=vendor_table_scroll.set)
     vendor_table_scroll.config(command=vendor_table.xview)
     vendor_table.pack(fill=tk.BOTH, expand=True)
 
     # Load vendor data from file
     load_vendor_data_from_file()
+
+    # Create a button to toggle color state
+    color_toggle_button = ttk.Button(root, text="Toggle Color", command=toggle_color_state)
+    color_toggle_button.pack(pady=10)
 
     # Function to handle closing the application
     def on_close():
@@ -242,6 +295,7 @@ def main():
 
     # Start the tkinter main loop
     root.mainloop()
+
 
 if __name__ == "__main__":
     main()
