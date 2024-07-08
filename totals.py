@@ -16,7 +16,7 @@ vendor_totals = {}
 vendor_data = []  # List to store vendor data
 vendor_table = None  # Initialize vendor_table globally
 color_enabled = False  # Global variable to control color state
-
+num_vendors = 0
 
 # Custom colormap for point colors
 def get_color_for_percentage(percentage):
@@ -49,6 +49,18 @@ def on_click(event):
                     writer = csv.writer(f)
                     writer.writerow([x, y, vendor_info])
                 update_scatter()  # Update scatter plot
+
+def get_number_of_vendors():
+    global num_vendors
+    try:
+        with open('data.csv', 'r') as csv_file:
+            reader = csv.reader(csv_file)
+            header = next(reader)  # Read the header
+            num_vendors = len(header) - 1  # Assuming first column is not a vendor
+    except FileNotFoundError:
+        print("File 'data.csv' not found!")
+    except Exception as e:
+        print(f"Error reading 'data.csv': {e}")
 
 
 # Function to update the scatter plot with points and text size
@@ -169,7 +181,8 @@ def update_vendor_table():
 
     # Define column structure
     columns = ["Pillar Classification"]
-    for i in range(1, 36):
+    get_number_of_vendors()
+    for i in range(1, num_vendors):
         columns.append(f"Vendor Name {i}")
         columns.append(f"Percentage {i}")
 
