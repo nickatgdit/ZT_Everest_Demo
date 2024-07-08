@@ -179,10 +179,10 @@ def main(use_superscored_percentage=True):
                 advanced_key = key.replace("Grand", "Advanced").strip()
                 if use_superscored_percentage:
                     max_possible_score = master_dict[target_key][1] + master_dict[advanced_key][1]
-                    updated_percentage = calculate_superscored_percentage(total, max_possible_score)*2
+                    updated_percentage = calculate_superscored_percentage(total, max_possible_score)
                 else:
                     updated_percentage = calculate_previous_percentage(total, (
-                                len(objectives_lists[target_key]) + len(objectives_lists[advanced_key])) * num_vendors)*2
+                                len(objectives_lists[target_key]) + len(objectives_lists[advanced_key])) * num_vendors)
                 updated_line = f"{parts[0]},{parts[1]},{parts[2]},{updated_percentage:.2f}%\n"
                 updated_lines.append(updated_line)
             else:
@@ -215,7 +215,7 @@ def main(use_superscored_percentage=True):
         else:
             percentage = calculate_previous_percentage(total, (
                         len(objectives_lists[target_key]) + len(objectives_lists[advanced_key])) * num_vendors)
-        print(f"{key}: {total}, percentage: {percentage*2:.2f}%")
+        print(f"{key}: {total}, percentage: {percentage:.2f}%")
 
 
 if __name__ == "__main__":
