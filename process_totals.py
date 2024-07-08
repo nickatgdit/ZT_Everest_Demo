@@ -64,25 +64,6 @@ def main(use_superscored_percentage=True):
     # Maximum score per objective
     max_score_per_objective = 2
 
-    # Initialize totals and gaps
-    objective_totals = {}
-    gap_dictionary = {
-        "User: Target": {"count": 0, "names": []},
-        "User: Advanced": {"count": 0, "names": []},
-        "Device: Target": {"count": 0, "names": []},
-        "Device: Advanced": {"count": 0, "names": []},
-        "Application & Workload: Target": {"count": 0, "names": []},
-        "Application & Workload: Advanced": {"count": 0, "names": []},
-        "Data: Target": {"count": 0, "names": []},
-        "Data: Advanced": {"count": 0, "names": []},
-        "Network & Environment: Target": {"count": 0, "names": []},
-        "Network & Environment: Advanced": {"count": 0, "names": []},
-        "Automation & Orchestration: Target": {"count": 0, "names": []},
-        "Automation & Orchestration: Advanced": {"count": 0, "names": []},
-        "Visibility & Analytics: Target": {"count": 0, "names": []},
-        "Visibility & Analytics: Advanced": {"count": 0, "names": []}
-    }
-
     objectives_lists = {
         "User: Target": user_target_objectives,
         "User: Advanced": user_advanced_objectives,
@@ -101,12 +82,17 @@ def main(use_superscored_percentage=True):
     }
 
     # Step 2: Read data.csv and calculate objective totals and gaps
+    objective_totals = {}
+    gap_dictionary = {}
+    for key in objectives_lists.keys():
+        gap_dictionary[key] = {"count": 0, "names": []}
+
     with open('data.csv', mode='r') as csv_file:
         csv_reader = csv.reader(csv_file)
         next(csv_reader)  # Skip header
         for row in csv_reader:
             objective_number = row[0].strip()  # Assuming objective number is in the first column
-            scores = [int(value) for value in row[1:] if value.strip()]
+            scores = [float(value) for value in row[1:] if value.strip()]
             total = sum(scores)
             objective_totals[objective_number] = total
 
@@ -126,7 +112,18 @@ def main(use_superscored_percentage=True):
         max_possible_score = calculate_max_possible_score(objectives, max_score_per_objective)
         master_dict[key] = (total, max_possible_score)
 
-    # Step 4: Read existing lines from totals.txt and update
+    # Step 4: Calculate grand totals for each pillar
+    grand_totals = {
+        "User: Grand": master_dict["User: Target"][0] + master_dict["User: Advanced"][0],
+        "Device: Grand": master_dict["Device: Target"][0] + master_dict["Device: Advanced"][0],
+        "Application & Workload: Grand": master_dict["Application & Workload: Target"][0] + master_dict["Application & Workload: Advanced"][0],
+        "Data: Grand": master_dict["Data: Target"][0] + master_dict["Data: Advanced"][0],
+        "Network & Environment: Grand": master_dict["Network & Environment: Target"][0] + master_dict["Network & Environment: Advanced"][0],
+        "Automation & Orchestration: Grand": master_dict["Automation & Orchestration: Target"][0] + master_dict["Automation & Orchestration: Advanced"][0],
+        "Visibility & Analytics: Grand": master_dict["Visibility & Analytics: Target"][0] + master_dict["Visibility & Analytics: Advanced"][0]
+    }
+
+    # Step 5: Read existing lines from totals.txt and update
     with open('totals.txt', 'r') as file:
         lines = file.readlines()
 
@@ -144,16 +141,25 @@ def main(use_superscored_percentage=True):
                 gap_info = f"{gap_dictionary[key]['count']} ({', '.join(gap_dictionary[key]['names'])})"
                 updated_line = f"{parts[0]},{parts[1]},{parts[2]},{updated_percentage:.2f}%,{gap_info}\n"
                 updated_lines.append(updated_line)
+            elif ": Grand" in key:
+                total = grand_totals[key]
+                if use_superscored_percentage:
+                    max_possible_score = master_dict[key.replace("Grand", "Target")][1] + master_dict[key.replace("Grand", "Advanced")][1]
+                    updated_percentage = calculate_superscored_percentage(total, max_possible_score)
+                else:
+                    updated_percentage = calculate_previous_percentage(total, (len(objectives_lists[key.replace("Grand", "Target")]) + len(objectives_lists[key.replace("Grand", "Advanced")])) * 35)
+                updated_line = f"{parts[0]},{parts[1]},{parts[2]},{updated_percentage:.2f}%\n"
+                updated_lines.append(updated_line)
             else:
                 updated_lines.append(line)
         else:
             updated_lines.append(line)
 
-    # Step 5: Write updated lines back to totals.txt
+    # Step 6: Write updated lines back to totals.txt
     with open('totals.txt', 'w') as file:
         file.writelines(updated_lines)
 
-    # Step 6: Print statements with percentage calculation
+    # Step 7: Print statements with percentage calculation
     print("totals.txt has been updated successfully.")
     for key, (total, max_score) in master_dict.items():
         if use_superscored_percentage:
@@ -162,6 +168,17 @@ def main(use_superscored_percentage=True):
             percentage = calculate_previous_percentage(total, len(objectives_lists[key]) * 35)
         gap_info = f"{gap_dictionary[key]['count']} ({', '.join(gap_dictionary[key]['names'])})"
         print(f"{key}: {total}, with {'max possible score' if use_superscored_percentage else 'count of'} {max_score}, percentage: {percentage:.2f}%, gaps (0 or 1): {gap_info}")
+
+    # Print grand totals
+    for key, total in grand_totals.items():
+        target_key = key.replace("Grand", "Target").strip()
+        advanced_key = key.replace("Grand", "Advanced").strip()
+        if use_superscored_percentage:
+            max_possible_score = master_dict[target_key][1] + master_dict[advanced_key][1]
+            percentage = calculate_superscored_percentage(total, max_possible_score)
+        else:
+            percentage = calculate_previous_percentage(total, (len(objectives_lists[target_key]) + len(objectives_lists[advanced_key])) * 35)
+        print(f"{key}: {total}, percentage: {percentage:.2f}%")
 
 if __name__ == "__main__":
     # Set this flag to True or False to choose between superscored percentage and previous method
