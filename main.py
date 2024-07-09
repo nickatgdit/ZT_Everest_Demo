@@ -66,6 +66,8 @@ def select_data_file():
         try:
             # Read the Excel file
             df = pd.read_excel(file_path, header=None)
+            print("Excel file read successfully.")
+            print("DataFrame shape:", df.shape)
 
             # Extract vendor names
             vendor_names = []
@@ -75,35 +77,42 @@ def select_data_file():
                 vendor_names.append(vendor_name)
                 col_index += 1
 
+            print("Vendor names extracted:", vendor_names)
+
             # Create the header for the CSV
             header = ["Objective"] + vendor_names
+            print("CSV header:", header)
 
             # Extract the data from the specified ranges
             ranges = [
-                (14, 41),  # A15:A42
-                (43, 66),  # A44:A67
-                (68, 85),  # A69:A86
-                (87, 117),  # A88:A118
-                (119, 130),  # A120:A131
-                (132, 151),  # A133:A152
-                (153, 169)  # A154:A170
+                (15, 42),  # A15:A42
+                (45, 68),  # A45:A68
+                (71, 88),  # A71:A88
+                (91, 121), # A91:A121
+                (124, 135),# A124:A135
+                (138, 157),# A138:A157
+                (160, 176) # A160:A176
             ]
 
             data = []
             for start, end in ranges:
-                for i in range(start, end + 1):
+                for i in range(start - 1, end):  # Adjusted for 0-based index
                     if i < df.shape[0]:  # Check if the row index is within bounds
                         row = [df.iloc[i, 0]]  # First column is the Objective
-                        row.extend(df.iloc[i, 2:col_index])  # Vendor columns within bounds
+                        row.extend(df.iloc[i, 2:col_index].values)  # Vendor columns
                         data.append(row)
+                        print(f"Extracted row {i + 1}:", row)
 
             # Create a DataFrame from the data and write to CSV
             data_df = pd.DataFrame(data, columns=header)
             script_dir = os.path.dirname(os.path.abspath(__file__))
             target_file_path = os.path.join(script_dir, "data.csv")
             data_df.to_csv(target_file_path, index=False)
+            messagebox.showinfo("Success", "data.csv has been replaced successfully.")
+            print("CSV file written successfully.")
         except Exception as e:
-            print(e)
+            messagebox.showerror("Error", f"Error processing the selected file: {e}")
+            print("Error:", e)
 
 # Initialize tkinter
 root = tk.Tk()
