@@ -83,28 +83,27 @@ def select_data_file():
                 (14, 41),  # A15:A42
                 (43, 66),  # A44:A67
                 (68, 85),  # A69:A86
-                (87, 117), # A88:A118
-                (119, 130),# A120:A131
-                (132, 151),# A133:A152
-                (153, 169) # A154:A170
+                (87, 117),  # A88:A118
+                (119, 130),  # A120:A131
+                (132, 151),  # A133:A152
+                (153, 169)  # A154:A170
             ]
 
             data = []
             for start, end in ranges:
                 for i in range(start, end + 1):
-                    row = [df.iloc[i, 0]]  # First column is the Objective
-                    for j in range(2, col_index):  # Vendor columns
-                        row.append(df.iloc[i, j])
-                    data.append(row)
+                    if i < df.shape[0]:  # Check if the row index is within bounds
+                        row = [df.iloc[i, 0]]  # First column is the Objective
+                        row.extend(df.iloc[i, 2:col_index])  # Vendor columns within bounds
+                        data.append(row)
 
             # Create a DataFrame from the data and write to CSV
             data_df = pd.DataFrame(data, columns=header)
             script_dir = os.path.dirname(os.path.abspath(__file__))
             target_file_path = os.path.join(script_dir, "data.csv")
             data_df.to_csv(target_file_path, index=False)
-            messagebox.showinfo("Success", "data.csv has been replaced successfully.")
         except Exception as e:
-            messagebox.showerror("Error", f"Error processing the selected file: {e}")
+            print(e)
 
 # Initialize tkinter
 root = tk.Tk()
