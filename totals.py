@@ -9,14 +9,14 @@ from matplotlib.colors import Normalize
 
 # Global variables
 points = []
-edit_mode = False
-default_font_size = 15
+edit_mode = True
+default_font_size = 10
 slider = None  # Initialize slider as None globally
 vendor_totals = {}
 vendor_data = []  # List to store vendor data
 vendor_table = None  # Initialize vendor_table globally
 color_enabled = False  # Global variable to control color state
-num_vendors = 0
+
 
 # Custom colormap for point colors
 def get_color_for_percentage(percentage):
@@ -44,30 +44,15 @@ def on_click(event):
             if vendor_info:
                 # Save point to points list
                 points.append({'x': x, 'y': y, 'vendor_info': vendor_info})
-                # Append point to totals.txt
-                with open("totals.txt", "a", newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow([x, y, vendor_info])
                 update_scatter()  # Update scatter plot
-
-def get_number_of_vendors():
-    global num_vendors
-    try:
-        with open('data.csv', 'r') as csv_file:
-            reader = csv.reader(csv_file)
-            header = next(reader)  # Read the header
-            num_vendors = len(header) - 1  # Assuming first column is not a vendor
-    except FileNotFoundError:
-        print("File 'data.csv' not found!")
-    except Exception as e:
-        print(f"Error reading 'data.csv': {e}")
+                print(x,y)
 
 
 # Function to update the scatter plot with points and text size
 def update_scatter():
     global points, slider, vendor_totals, color_enabled
     # Calculate font size based on slider value
-    font_size = default_font_size
+    font_size = int(slider.get()) if slider else default_font_size
 
     # Clear existing points and annotations
     scatter.set_offsets([[0, 0]])
@@ -115,6 +100,7 @@ def update_scatter():
 
     ax.figure.canvas.draw()
 
+
 # Function to load points from the text file
 def load_points_from_file():
     global points, vendor_totals
@@ -124,16 +110,12 @@ def load_points_from_file():
         with open("totals.txt", "r") as f:
             reader = csv.reader(f)
             for row in reader:
-                if len(row) >= 3:  # Ensure row has at least 3 elements
+                if len(row) >= 5:  # Ensure row has at least 5 elements
                     try:
                         x, y = float(row[0]), float(row[1])
                         vendor_info = row[2]
-                        if len(row) == 4:  # Grand total lines
-                            total = row[3]
-                            gaps = ""
-                        else:
-                            total = row[3]
-                            gaps = ','.join(row[4:])  # Join the rest of the row to handle commas in gap names
+                        total = row[3]
+                        gaps = ','.join(row[4:])  # Join the rest of the row to handle commas in gap names
                         points.append({'x': x, 'y': y, 'vendor_info': vendor_info})
                         vendor_totals[vendor_info] = {"total": total, "gaps": gaps}
                         print(f"Loaded vendor info: {vendor_info}, Total: {total}, Gaps: {gaps}")
@@ -146,7 +128,6 @@ def load_points_from_file():
     except FileNotFoundError:
         # Handle case where file does not exist initially
         print("File 'totals.txt' not found!")
-
 
 
 # Function to load vendor data from the text file
@@ -181,8 +162,7 @@ def update_vendor_table():
 
     # Define column structure
     columns = ["Pillar Classification"]
-    get_number_of_vendors()
-    for i in range(1, num_vendors):
+    for i in range(1, 36):
         columns.append(f"Vendor Name {i}")
         columns.append(f"Percentage {i}")
 
@@ -249,19 +229,25 @@ def main():
     root = tk.Tk()
     root.title("Vendor Points Tracker")
 
-    # Set default window size
-    root.geometry("1200x800")
+    # Set window size to be more square
+    window_size = 800  # Set the size to 800x800 for a square window
+    root.geometry(f"{window_size}x{window_size}")
 
-    # Create a main frame
-    main_frame = ttk.Frame(root)
-    main_frame.pack(fill=tk.BOTH, expand=True)
+    # Create a PanedWindow to make the image and table resizable
+    paned_window = tk.PanedWindow(root, orient=tk.VERTICAL)
+    paned_window.pack(fill=tk.BOTH, expand=True)
+
+    # Create a frame for the image and make it resizable
+    image_frame = ttk.Frame(paned_window)
+    paned_window.add(image_frame)
+    paned_window.paneconfig(image_frame, stretch='always')
 
     # Load image for the chart
     img = mpimg.imread('packaged/DoDFanChart_CLEARED.png')
     img_height, img_width, _ = img.shape
 
     # Create a figure and axis with locked aspect ratio
-    fig, ax = plt.subplots(figsize=(12, 8))  # Adjust figsize for larger image
+    fig, ax = plt.subplots()
     ax.imshow(img, extent=[0, img_width, 0, img_height])
     ax.set_aspect('auto')  # Maintain the aspect ratio of the image
     ax.set_axis_off()  # Hide axes to prevent the image from moving
@@ -273,21 +259,23 @@ def main():
     fig.canvas.mpl_connect('button_press_event', on_click)
 
     # Convert matplotlib figure to tkinter canvas
-    canvas = FigureCanvasTkAgg(fig, master=main_frame)
+    canvas = FigureCanvasTkAgg(fig, master=image_frame)
     canvas.draw()
     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
     # Load existing points from the file
     load_points_from_file()
 
-    # Create a Treeview widget for the vendor data table with horizontal scrollbar
-    vendor_table_frame = ttk.Frame(main_frame)
-    vendor_table_frame.pack(pady=20, fill=tk.BOTH, expand=True)
+    # Create a frame for the vendor table and make it resizable
+    table_frame = ttk.Frame(paned_window)
+    paned_window.add(table_frame)
+    paned_window.paneconfig(table_frame, stretch='always')
 
-    vendor_table_scroll = ttk.Scrollbar(vendor_table_frame, orient=tk.HORIZONTAL)
+    # Create a Treeview widget for the vendor data table with horizontal scrollbar
+    vendor_table_scroll = ttk.Scrollbar(table_frame, orient=tk.HORIZONTAL)
     vendor_table_scroll.pack(side=tk.BOTTOM, fill=tk.X)
 
-    vendor_table = ttk.Treeview(vendor_table_frame, columns=(), show='headings', xscrollcommand=vendor_table_scroll.set)
+    vendor_table = ttk.Treeview(table_frame, columns=(), show='headings', xscrollcommand=vendor_table_scroll.set)
     vendor_table_scroll.config(command=vendor_table.xview)
     vendor_table.pack(fill=tk.BOTH, expand=True)
 
@@ -295,12 +283,8 @@ def main():
     load_vendor_data_from_file()
 
     # Create a button to toggle color state
-    color_toggle_button = ttk.Button(main_frame, text="Toggle Color", command=toggle_color_state)
+    color_toggle_button = ttk.Button(root, text="Toggle Color", command=toggle_color_state)
     color_toggle_button.pack(pady=10)
-
-    # Create a button to toggle edit mode
-    edit_mode_button = ttk.Button(main_frame, text="Toggle Edit Mode", command=toggle_edit_mode)
-    edit_mode_button.pack(pady=10)
 
     # Function to handle closing the application
     def on_close():
@@ -312,6 +296,7 @@ def main():
 
     # Start the tkinter main loop
     root.mainloop()
+
 
 if __name__ == "__main__":
     main()
